@@ -1,0 +1,230 @@
+kind: pipeline
+type: docker
+name: Staging Pipeline
+
+global-variables:
+  # Slack config
+  slack_webhook: &slack_webhook TESTMIRDAN_SLACK_WEBHOOK
+  slack_channel: &slack_channel test-mirdan
+
+  # Google registry 
+  registry_token: &registry_token STAGING_GCR_TOKEN
+  registry_path: &registry_path innov-staging-env/chatops/cubeflow
+
+  # Docker & trim tags
+  dockerfile_path: &dockerfile_path Dockerfile
+  image_tag: &image_tag ${DRONE_TAG##cubeflow-}
+
+  # Bash env
+  environment: &default_environment
+    DEPLOYMENT_REPO: inno_infra
+    HELM_PATH: cluster/gcp_staging_cluster/k8s/cubeflow
+    WORKSPACE: dana-id
+    TAGS_VERSION: ${DRONE_TAG##cubeflow-}
+    ENV: staging
+
+trigger:
+  ref:
+    include:
+      - refs/tags/cubeflow-v*.*.*-alpha
+    exclude:
+      - refs/heads/main
+
+steps:
+  - name: Build Slack Notification 
+    image: plugins/slack
+    environment:
+      <<: *default_environment
+    settings:
+      webhook:
+        from_secret: *slack_webhook
+      channel: *slack_channel
+      template: >
+        {{#success build.status}}
+          Build ${DRONE_TAG} started.
+          Please wait for a moment :pleasefrog:
+          Check the progress here ${DRONE_BUILD_LINK}
+        {{else}}
+          Build ${DRONE_TAG} failed :patrick-hmmm:
+          Check for details ${DRONE_BUILD_LINK}
+        {{/success}}
+    when:
+      status:
+      - success
+
+  - name: Build and Push Image
+    image: plugins/gcr
+    settings: 
+      repo: *registry_path
+      tags: *image_tag
+      json_key:
+        from_secret: *registry_token
+      dockerfile: *dockerfile_path
+    depends_on: 
+      - Build Slack Notification
+    when:
+     status: 
+      - success
+
+  - name: Commit New Tag Version
+    image: alpine/git
+    environment:
+      <<: *default_environment
+    commands: 
+      - git clone https://${BITBUCKET_USERNAME}:${BITBUCKET_TOKEN}@bitbucket.org/"$WORKSPACE"/"$DEPLOYMENT_REPO"
+      - cd "$DEPLOYMENT_REPO"/"$HELM_PATH"
+      - git remote set-url origin https://${BITBUCKET_USERNAME}:${BITBUCKET_TOKEN}@bitbucket.org/"$WORKSPACE"/"$DEPLOYMENT_REPO"
+      - apk add yq jq
+      - yq eval -j values-"$ENV".yaml -o=json > values-"$ENV".json
+      - jq --arg tag "$TAGS_VERSION" '(.image.tag) |= $tag' values-$ENV.json > tmp.json
+      - yq eval -P tmp.json -oy > values-$ENV.yaml
+      - rm values-$ENV.json tmp.json
+      - git add -A
+      - git commit -m "Automatically promoting new image version ${DRONE_TAG}" --author "DroneCI <devops@danaventures.id>"
+      - git push
+      - cat values-$ENV.yaml
+    depends_on: 
+      - Build and Push Image
+    when:
+      status:
+      - success  
+
+  - name: New commit tag slack notification 
+    image: plugins/slack
+    environment:
+      <<: *default_environment
+    settings:
+      webhook:
+        from_secret: *slack_webhook
+      channel: *slack_channel
+      template: >
+        {{#success build.status}}
+          New tag ${DRONE_TAG} commit succeeded :lgtm: 
+          ArgoCD will deploy the image within +- 5 mins 
+          Please check regularly.
+        {{else}}
+          New tag ${DRONE_TAG} failed :patrick-hmmm:
+          Check for details ${DRONE_BUILD_LINK}
+        {{/success}}
+    depends_on: 
+      - Commit New Tag Version
+    when:
+      status:
+      - failure
+      - success
+
+---
+kind: pipeline
+type: docker
+name: Production Pipeline
+
+global-variables:
+  # Slack config
+  slack_webhook: &slack_webhook TESTMIRDAN_SLACK_WEBHOOK
+  slack_channel: &slack_channel testing-channel
+
+  # Google registry 
+  registry_token: &registry_token STAGING_GCR_TOKEN
+  registry_path: &registry_path innov-staging-env/chatops/cubeflow
+
+  # Docker & trim tags
+  dockerfile_path: &dockerfile_path Dockerfile
+  image_tag: &image_tag ${DRONE_TAG##cubeflow-}
+
+  # Bash env
+  environment: &default_environment
+    DEPLOYMENT_REPO: inno_infra
+    HELM_PATH: cluster/gcp_staging_cluster/k8s/cubeflow
+    WORKSPACE: dana-id
+    TAGS_VERSION: ${DRONE_TAG##cubeflow-}
+    ENV: production
+
+trigger:
+  ref:
+    include:
+      - refs/tags/cubeflow-v*.*.*-production
+    exclude:
+      - refs/heads/main
+
+steps:
+  - name: Build Slack Notification 
+    image: plugins/slack
+    environment:
+      <<: *default_environment
+    settings:
+      webhook:
+        from_secret: *slack_webhook
+      channel: *slack_channel
+      template: >
+        {{#success build.status}}
+          Build ${DRONE_TAG} started.
+          Please wait for a moment :pleasefrog:
+          Check the progress here ${DRONE_BUILD_LINK}
+        {{else}}
+          Build ${DRONE_TAG} failed :patrick-hmmm:
+          Check for details ${DRONE_BUILD_LINK}
+        {{/success}}
+    when:
+      status:
+      - success
+
+  - name: Build and Push Image
+    image: plugins/gcr
+    settings: 
+      repo: *registry_path
+      tags: *image_tag
+      json_key:
+        from_secret: *registry_token
+      dockerfile: *dockerfile_path
+    depends_on: 
+      - Build Slack Notification
+    when:
+     status:
+      - success
+
+  - name: Commit New Tag Version
+    image: alpine/git
+    environment:
+      <<: *default_environment
+    commands: 
+      - git clone https://${BITBUCKET_USERNAME}:${BITBUCKET_TOKEN}@bitbucket.org/"$WORKSPACE"/"$DEPLOYMENT_REPO"
+      - cd "$DEPLOYMENT_REPO"/"$HELM_PATH"
+      - git remote set-url origin https://${BITBUCKET_USERNAME}:${BITBUCKET_TOKEN}@bitbucket.org/"$WORKSPACE"/"$DEPLOYMENT_REPO"
+      - apk add yq jq
+      - yq eval -j values-"$ENV".yaml -o=json > values-"$ENV".json
+      - jq --arg tag "$TAGS_VERSION" '(.image.tag) |= $tag' values-$ENV.json > tmp.json
+      - yq eval -P tmp.json -oy > values-$ENV.yaml
+      - rm values-$ENV.json tmp.json
+      - git add -A
+      - git commit -m "Automatically promoting new image version ${DRONE_TAG}" --author "DroneCI <devops@danaventures.id>"
+      - git push
+      - cat values-$ENV.yaml
+    depends_on: 
+      - Build and Push Image
+    when:
+      status:
+      - success  
+
+  - name: New commit tag slack notification 
+    image: plugins/slack
+    environment:
+      <<: *default_environment
+    settings:
+      webhook:
+        from_secret: *slack_webhook
+      channel: *slack_channel
+      template: >
+        {{#success build.status}}
+          New tag ${DRONE_TAG} commit succeeded :lgtm: 
+          ArgoCD will deploy the image within +- 5 mins 
+          Please check regularly.
+        {{else}}
+          New tag ${DRONE_TAG} failed :patrick-hmmm:
+          Check for details ${DRONE_BUILD_LINK}
+        {{/success}}
+    depends_on: 
+      - Commit New Tag Version
+    when:
+      status:
+      - failure
+      - success

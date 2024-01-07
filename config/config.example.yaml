@@ -1,0 +1,48 @@
+env:                         # development, staging, production 
+
+argocd:
+  server_url:                # https://argocd-server.argocd.svc.local
+  username: 
+  password: 
+  appname:
+    - appname-1
+    - appname-2
+
+slack:
+  signing_secret: 
+  token: 
+  channel:
+    - name: channel-project1
+      rollouts_name:
+        - app1                
+        - app2
+      argo_app_name:
+        - argo app1
+        - argo app2
+    - name: channel-project2
+      rollouts_name:
+        - app1
+        - app2
+      argo_app_name:
+        - argo app1
+        - argo app2
+
+db:
+  name: 
+  host: 
+  port: 
+  username: 
+  password: 
+
+gcp:
+  project_id: 
+  credentials_path: 
+  bucket_name: 
+  gke:
+    cluster_name: 
+    zone: 
+    namespace_to_scale:
+      - namespace-1
+      - namespace-2
+
+

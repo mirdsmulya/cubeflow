@@ -1,6 +1,6 @@
 # Cubeflow ChatOps Application
 
-Cubeflow is a ChatOps application written in Golang, designed to streamline infrastructure operations on Kubernetes. With Cubeflow, you can perform various tasks such as restarting services, rolling back deployments, backing up databases, scaling services, and syncing ArgoCD applications—all through Slack commands.
+Cubeflow is a ChatOps application written in Golang, designed to streamline infrastructure operations on Kubernetes. With Cubeflow, you can perform various tasks such as restarting services, rolling back deployments, backing up databases, scaling services, and syncing ArgoCD applicationsï¿½all through Slack commands.
 
 ## Table of Contents
 
@@ -37,8 +37,8 @@ Cubeflow is a ChatOps application written in Golang, designed to streamline infr
 1. Clone the Cubeflow repository:
 
     ```bash
-    git clone https://bitbucket.org/dana-id/ven_devops_cubeflow.git
-    cd ven_devops_cubeflow
+    git clone https://github.com/mirdsmulya/cubeflow.git
+    cd cubeflow
     ```
 
 2. Fill Cubeflow configuration on config/config.yaml:

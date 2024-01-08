@@ -1,0 +1,41 @@
+{{- if .Values.istioIngress.enabled -}}
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: {{ .Values.nameOverride }}-vs
+  namespace: istio-system
+spec:
+  hosts:
+    - {{ .Values.istioIngress.hostname }}
+  gateways:
+    - {{ .Values.nameOverride }}-gateway
+  http:
+    - route:
+        - destination:
+            host: {{ .Values.istioIngress.virtualservice.destination }}
+            port:
+              number: {{ .Values.service.port }}
+      match:
+        - uri:
+            prefix: /v2
+      corsPolicy:
+        allowOrigins:
+          - exact: "*"
+        allowMethods:
+          - GET
+          - POST
+          - PATCH
+          - PUT
+          - DELETE
+          - OPTIONS
+        allowHeaders:
+          - authorization
+          - content-type
+          - accept
+          - origin
+          - user-agent
+          - x-slack-signature
+          - x-slack-request-timestamp
+        allowCredentials: false
+        maxAge: "24h"
+{{- end }}

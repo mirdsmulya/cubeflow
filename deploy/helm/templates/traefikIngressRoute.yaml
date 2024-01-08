@@ -1,0 +1,82 @@
+{{- if .Values.ingressRoute.enabled }}
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: {{ include "cubeflow.fullname" . }}
+spec:
+  entryPoints:      
+    - websecure
+  routes:      
+  - kind: Rule
+    match: {{ .Values.ingressRoute.match }} 
+    {{- if .Values.ingressRoute.middlewares.enabled }}
+    middlewares:
+    - name: {{ .Values.ingressRoute.middlewares.name }}
+      namespace: {{ .Release.Namespace }}
+    {{- end }}
+    services:
+    - kind: Service
+      name: {{ include "cubeflow.fullname" . }}
+      namespace: {{ .Release.Namespace }}
+      passHostHeader: true
+      port: {{ .Values.service.port }}
+      responseForwarding:
+        flushInterval: 1ms
+      scheme: http
+      # serversTransport: transport
+      sticky:
+        cookie:
+          httpOnly: true
+          name: cookie
+          secure: true
+          sameSite: none
+      strategy: RoundRobin
+      weight: 10
+
+  tls:
+    secretName: {{ .Values.nameOverride }}
+---
+# Redirection
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: {{ include "cubeflow.fullname" . }}-web-redirection
+spec:
+  entryPoints:      
+    - web
+  routes:      
+  - kind: Rule
+    match: {{ .Values.ingressRoute.match }} 
+    middlewares:
+    - name: {{ include "cubeflow.fullname" . }}-https-redirect
+      namespace: {{ .Release.Namespace }}
+    services:
+    - kind: Service
+      name: {{ include "cubeflow.fullname" . }}
+      namespace: {{ .Release.Namespace }}
+      passHostHeader: true
+      port: {{ .Values.service.port }}
+      responseForwarding:
+        flushInterval: 1ms
+      scheme: http
+      # serversTransport: transport
+      sticky:
+        cookie:
+          httpOnly: true
+          name: cookie
+          secure: true
+          sameSite: none
+      strategy: RoundRobin
+      weight: 10
+---
+# Redirect to https middleware
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: {{ include "cubeflow.fullname" . }}-https-redirect
+  namespace: {{ .Release.Namespace }}
+spec:
+  redirectScheme:
+    scheme: https
+    permanent: true
+{{- end }}

@@ -1,0 +1,122 @@
+
+replicaCount: 1
+
+image:
+  repository: mirdsmulya/cubeflow
+  pullPolicy: IfNotPresent
+  tag: "v0.6.0"
+
+nameOverride: "cubeflow"
+
+securityContext:
+  capabilities:
+    drop:
+    - ALL
+  readOnlyRootFilesystem: false
+  allowPrivilegeEscalation: false
+  runAsUser: 10001
+  runAsGroup: 10001
+  runAsNonRoot: true
+
+service:
+  type: ClusterIP
+  port: 8080
+
+costOptimizer:
+  enabled: false
+  # service:
+  #   scaleDown:
+  #     schedule: '01 21 * * *'
+  #     scaleTo: '1'
+  # nodeGroup:
+  #   name: 'secondary-node-pool'
+  #   scaleDown:
+  #     schedule: '10 21 * * *'
+  #     count: '0'
+  #   scaleUp:
+  #     schedule: '45 05 * * 1-5'
+  #     count: '1'
+
+dbBackup:
+  enabled: false 
+  dbName: 
+  schedule: 
+  dbName: 
+
+ingressRoute:
+  enabled: false
+  match: # Host(`cubeflow endpoint domain`) && PathPrefix(`/v2`)
+  middlewares:
+    enabled: false
+    # name: strippath
+
+istioIngress:
+  enabled: false
+  hostname: # cubeflow endpoint domain 
+  gateway:
+    httpPort: 80
+    httpsPort: 443
+  virtualservice:
+    destination: # cubeflow.cubeflow.svc.cluster.local
+
+
+ingress:
+  enabled: false
+  className: ""
+  annotations:
+    kubernetes.io/ingress.class: nginx
+  hosts:
+    - host: # cubeflow endpoint domain
+      paths:
+        # path should be only /v2 enabled
+        - path: /v2
+          pathType: ImplementationSpecific
+  tls:
+    - hosts:
+      - # cubeflow endpoint domain
+      secretName: cubeflow
+
+# Enable ACME Certificate for provisioning SSL Certificate using cert-manager
+acmeCertificate:
+  enabled: true
+  host: # cubeflow endpoint domain
+  issuerRef:
+    kind: ClusterIssuer
+    name: # letsencrypt-staging-nginx
+
+vault:
+  enabled: true
+  volumes:
+    - name: config-volume
+      csi:
+        driver: secrets-store.csi.k8s.io
+        readOnly: true
+        volumeAttributes:
+          secretProviderClass: vault-cubeflow-config
+  volumeMounts:
+    - name: config-volume
+      readOnly: true
+      mountPath: /home/app/config
+  secretProvider:
+    name: vault-cubeflow-config
+    roleName: cubeflow
+    objects:
+      - objectName: config.yaml
+        secretPath: # path to vault secret
+        secretKey: config
+      - objectName: gcp_sa.json
+        secretPath:  # path to vault secret
+        secretKey: gcp-credentials
+
+resources:
+  limits:
+    memory: 128Mi
+  requests:
+    cpu: 30m
+    memory: 128Mi
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}

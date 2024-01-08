@@ -1,0 +1,90 @@
+{{- if .Values.costOptimizer.enabled }}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ .Values.nameOverride }}-service-scaledown
+  labels:
+    {{- include "cubeflow.labels" . | nindent 4 }}
+spec:
+  schedule: {{ .Values.costOptimizer.service.scaleDown.schedule }}
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      parallelism: 1
+      template:
+        metadata:
+          labels:
+            {{- include "cubeflow.selectorLabels" . | nindent 12 }}
+        spec:
+          containers:
+          - name: service-scaledown
+            image: "curlimages/curl:latest"
+            args:
+              - "curl"
+              - "-X"
+              - "POST"
+              - "http://{{ .Values.nameOverride }}.{{ .Release.Namespace }}.svc.cluster.local:8080/v1/service/scale/{{ .Values.costOptimizer.service.scaleDown.scaleTo }}"
+          restartPolicy: Never
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ .Values.nameOverride }}-node-scaledown
+  labels:
+    {{- include "cubeflow.labels" . | nindent 4 }}
+spec:
+  timeZone: {{ .Values.costOptimizer.timeZone }}
+  schedule: {{ .Values.costOptimizer.nodeGroup.scaleDown.schedule}}
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      parallelism: 1
+      template:
+        metadata:
+          labels:
+            {{- include "cubeflow.selectorLabels" . | nindent 12 }}
+        spec:
+          containers:
+          - name: nodegroup-scaledown
+            image: "curlimages/curl:latest"
+            args:
+              - "curl"
+              - "-X"
+              - "POST"
+              - "http://{{ .Values.nameOverride }}.{{ .Release.Namespace }}.svc.cluster.local:8080/v1/cluster/scale/{{ .Values.costOptimizer.nodeGroup.name }}/{{ .Values.costOptimizer.nodeGroup.scaleDown.count }}"
+          restartPolicy: Never
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ .Values.nameOverride }}-node-scaleup
+  labels:
+    {{- include "cubeflow.labels" . | nindent 4 }}
+spec:
+  timeZone: {{ .Values.costOptimizer.timeZone }}
+  schedule: {{ .Values.costOptimizer.nodeGroup.scaleUp.schedule}}
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      parallelism: 1
+      template:
+        metadata:
+          labels:
+            {{- include "cubeflow.selectorLabels" . | nindent 12 }}
+        spec:
+          containers:
+          - name: nodegroup-scaleup
+            image: "curlimages/curl:latest"
+            args:
+              - "curl"
+              - "-X"
+              - "POST"
+              - "http://{{ .Values.nameOverride }}.{{ .Release.Namespace }}.svc.cluster.local:8080/v1/cluster/scale/{{ .Values.costOptimizer.nodeGroup.name }}/{{ .Values.costOptimizer.nodeGroup.scaleUp.count }}"
+          restartPolicy: Never
+{{- end }}

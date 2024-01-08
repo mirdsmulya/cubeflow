@@ -1,0 +1,30 @@
+{{- if .Values.dbBackup.enabled }}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ .Values.nameOverride }}-db-backup
+  labels:
+    {{- include "cubeflow.labels" . | nindent 4 }}
+spec:
+  schedule: {{ .Values.dbBackup.schedule }}
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      parallelism: 1
+      template:
+        metadata:
+          labels:
+            {{- include "cubeflow.selectorLabels" . | nindent 12 }}
+        spec:
+          containers:
+          - name: service-db-backup
+            image: "curlimages/curl:latest"
+            args:
+              - "curl"
+              - "-X"
+              - "POST"
+              - "http://{{ .Values.nameOverride }}.{{ .Release.Namespace }}.svc.cluster.local:8080/v1/db/backup/{{ .Values.dbBackup.dbName }}"
+          restartPolicy: Never
+{{- end }}

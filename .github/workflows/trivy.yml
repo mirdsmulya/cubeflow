@@ -9,10 +9,7 @@ on:
   push:
     branches: [ "master" ]
   pull_request:
-    # The branches below must be a subset of the branches above
     branches: [ "master" ]
-  # schedule:
-  #   - cron: '23 19 * * 1'
 
 permissions:
   contents: read
@@ -36,11 +33,12 @@ jobs:
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@7b7aa264d83dc58691451798b4d117d53d21edfe
         with:
-          image-ref: 'docker.io/mirdsmulya/cubeflow:${{ github.sha }}'
+          image-ref: 'test-app:${{ github.sha }}'
           format: 'template'
           template: '@/contrib/sarif.tpl'
           output: 'trivy-results.sarif'
-          severity: 'CRITICAL,HIGH,WARN,INFO'
+          severity: 'CRITICAL,HIGH,WARN'
+          exit-code: 1 # Fail the pipeline if vulnerabilities of HIGH severity are found
 
       - name: Upload Trivy scan results to GitHub Security tab
         uses: github/codeql-action/upload-sarif@v3

@@ -8,7 +8,6 @@ RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o cubeflow ./cmd
 # Step 2: Runtime stage
 FROM alpine:latest
 
-# Add dependency and UTC+7 Config
 ENV TZ=Asia/Jakarta
 RUN apk --no-cache add tzdata 
 RUN apk --no-cache add ca-certificates 
